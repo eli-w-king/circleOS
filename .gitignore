@@ -1,0 +1,10 @@
+.env
+.venv/
+.tools/
+__pycache__/
+*.pyc
+firmware/build/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/main/device_config.h

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>circleOS dial keyboard</title>
+    <link rel="stylesheet" href="/dial-smooth.css" />
+  </head>
+  <body>
+    <main class="prototype">
+      <section class="workspace" aria-label="Rotary keyboard prototype">
+        <p class="resolution">466 × 466 device preview</p>
+        <div class="device">
+          <div class="screen">
+            <canvas
+              id="dial"
+              width="466"
+              height="466"
+              aria-label="Circular alphabet dial. Drag the edge to rotate and tap the center to select."
+            ></canvas>
+            <div class="beam-parallax" id="beam-parallax" aria-hidden="true">
+              <div class="beam"></div>
+            </div>
+          </div>
+        </div>
+
+        <strong class="sr-only" id="selected-letter">A</strong>
+        <output class="sr-only" id="message" aria-live="polite">—</output>
+
+        <div class="controls" aria-label="Dial controls">
+          <button type="button" data-action="previous" aria-label="Previous letter">
+            <span aria-hidden="true">←</span>
+          </button>
+          <button class="select" type="button" data-action="select">Select</button>
+          <button type="button" data-action="next" aria-label="Next letter">
+            <span aria-hidden="true">→</span>
+          </button>
+          <button type="button" data-action="delete">Delete</button>
+        </div>
+
+        <p class="hint">Drag the edge · tap the center</p>
+      </section>
+    </main>
+
+    <script src="/dial-scroll.js" defer></script>
+  </body>
+</html>

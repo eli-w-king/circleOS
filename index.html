@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>circleOS voice prototype</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card" aria-labelledby="title">
+        <div class="orb" id="orb" data-state="idle" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <p class="eyebrow">circleOS prototype</p>
+        <h1 id="title">GPT-Live voice</h1>
+        <p class="status" id="status" role="status" aria-live="polite">
+          Ready to connect
+        </p>
+        <div class="controls">
+          <button class="primary" id="start" type="button">
+            Start conversation
+          </button>
+          <button id="stop" type="button" disabled>End</button>
+        </div>
+        <audio id="audio" autoplay></audio>
+      </section>
+
+      <section class="transcript" aria-labelledby="transcript-title">
+        <div class="transcript-heading">
+          <h2 id="transcript-title">Live transcript</h2>
+          <button id="clear" type="button">Clear</button>
+        </div>
+        <div id="messages" class="messages" aria-live="polite">
+          <p class="empty">Conversation text will appear here.</p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

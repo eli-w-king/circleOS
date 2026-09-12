@@ -1,0 +1,196 @@
+:root {
+  color: #f7f7f7;
+  background: #050505;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: #050505;
+}
+
+button {
+  min-width: 3rem;
+  min-height: 3rem;
+  border: 1px solid #292929;
+  border-radius: 999px;
+  color: #a8a8a8;
+  background: #0c0c0c;
+  font: 600 0.78rem/1 inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #555;
+  color: #fff;
+}
+
+button:focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: 3px;
+}
+
+.prototype {
+  display: grid;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  place-items: center;
+}
+
+.workspace {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+}
+
+.resolution {
+  margin: 0;
+  color: #5f5f5f;
+  font: 600 0.65rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.device {
+  display: grid;
+  width: min(466px, calc(100vw - 2rem), calc(100vh - 11rem));
+  aspect-ratio: 1;
+  border: 1px solid #242424;
+  border-radius: 50%;
+  background: #090909;
+  box-shadow:
+    0 0 0 6px #0d0d0d,
+    0 1.5rem 5rem rgb(0 0 0 / 70%);
+  place-items: center;
+}
+
+.screen {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #000;
+}
+
+canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  touch-action: none;
+  cursor: grab;
+}
+
+canvas:active {
+  cursor: grabbing;
+}
+
+.beam-parallax,
+.beam {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.beam-parallax {
+  z-index: 2;
+  transition: transform 700ms cubic-bezier(0.2, 0.75, 0.25, 1);
+  will-change: transform;
+}
+
+.beam {
+  background: conic-gradient(
+    from -32deg,
+    transparent 0deg,
+    rgb(255 255 255 / 16%) 17deg,
+    rgb(255 255 255 / 88%) 32deg,
+    rgb(255 255 255 / 20%) 47deg,
+    transparent 64deg
+  );
+  filter: drop-shadow(0 0 4px rgb(255 255 255 / 30%));
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 2px)
+  );
+  animation: beam-alive 4.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes beam-alive {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: rotate(-1.2deg);
+  }
+
+  50% {
+    opacity: 0.96;
+    transform: rotate(1.2deg);
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.controls .select {
+  min-width: 5.5rem;
+  color: #080808;
+  background: #f2f2f2;
+  border-color: #f2f2f2;
+}
+
+.controls .select:hover {
+  color: #000;
+  background: #fff;
+}
+
+.controls [data-action="delete"] {
+  min-width: auto;
+  padding: 0 0.9rem;
+}
+
+.hint {
+  margin: -0.25rem 0 0;
+  color: #545454;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.sr-only {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam {
+    animation: none;
+  }
+
+  .beam-parallax {
+    transition: none;
+  }
+}
