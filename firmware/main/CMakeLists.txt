@@ -4,6 +4,7 @@ idf_component_register(
         "app_home.c"
         "axp2101.c"
         "battery_indicator.c"
+        "quick_settings.c"
         "rotary_dial.c"
         "rotary_keyboard.c"
         "thinking_orb.c"

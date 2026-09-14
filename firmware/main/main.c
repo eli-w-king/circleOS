@@ -23,6 +23,7 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "quick_settings.h"
 #include "rotary_keyboard.h"
 #include "thinking_orb.h"
 
@@ -83,13 +84,15 @@ static uint32_t dropped_playback_frames;
 static void orb_click_event(lv_event_t *event);
 static void open_voice_app(void *user_data);
 static void open_keyboard_app(void *user_data);
+static void open_quick_settings(void *user_data);
+static void close_quick_settings(void *user_data);
 static void close_control_clicked(lv_event_t *event);
 
 static const app_home_entry_t home_apps[] = {
     {APP_HOME_ICON_MICROPHONE, NULL, open_voice_app, NULL},
     {APP_HOME_ICON_SYMBOL, LV_SYMBOL_KEYBOARD, open_keyboard_app, NULL},
     {APP_HOME_ICON_SYMBOL, LV_SYMBOL_WIFI, NULL, NULL},
-    {APP_HOME_ICON_SYMBOL, LV_SYMBOL_SETTINGS, NULL, NULL},
+    {APP_HOME_ICON_SYMBOL, LV_SYMBOL_SETTINGS, open_quick_settings, NULL},
     {APP_HOME_ICON_SYMBOL, LV_SYMBOL_HOME, NULL, NULL},
     {APP_HOME_ICON_SYMBOL, LV_SYMBOL_VIDEO, NULL, NULL},
     {APP_HOME_ICON_SYMBOL, LV_SYMBOL_BELL, NULL, NULL},
@@ -149,6 +152,21 @@ static void open_keyboard_app(void *user_data)
     lv_obj_remove_flag(close_control, LV_OBJ_FLAG_HIDDEN);
 }
 
+static void open_quick_settings(void *user_data)
+{
+    (void)user_data;
+    app_home_set_visible(false);
+    lv_obj_add_flag(close_control, LV_OBJ_FLAG_HIDDEN);
+    quick_settings_open();
+}
+
+static void close_quick_settings(void *user_data)
+{
+    (void)user_data;
+    quick_settings_close();
+    app_home_set_visible(true);
+}
+
 static void return_to_home(void)
 {
     if (
@@ -177,6 +195,7 @@ static void power_off_device(void)
     }
 
     return_to_home();
+    quick_settings_close();
     app_home_set_visible(false);
     battery_indicator_set_visible(false);
     xQueueReset(playback_queue);
@@ -287,6 +306,15 @@ static esp_err_t start_display(void)
     if (battery_indicator_create(screen) == NULL) {
         bsp_display_unlock();
         ESP_LOGE(TAG, "Unable to create battery indicator");
+        return ESP_ERR_NO_MEM;
+    }
+
+    if (quick_settings_create(
+            screen,
+            close_quick_settings,
+            NULL) == NULL) {
+        bsp_display_unlock();
+        ESP_LOGE(TAG, "Unable to create quick settings");
         return ESP_ERR_NO_MEM;
     }
 
@@ -692,6 +720,12 @@ static void pmu_task(void *argument)
                     esp_err_to_name(battery_result));
             } else if (bsp_display_lock(100) == ESP_OK) {
                 battery_indicator_update(&battery);
+                const EventBits_t connection_bits =
+                    xEventGroupGetBits(connection_events);
+                quick_settings_update(
+                    &battery,
+                    (connection_bits & WIFI_CONNECTED_BIT) != 0,
+                    (connection_bits & WIFI_FAILED_BIT) != 0);
                 bsp_display_unlock();
             }
         }

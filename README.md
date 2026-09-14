@@ -89,7 +89,9 @@ rearrange the particles rather than crossfading separate animations. An L8
 canvas batches the entire swarm into one LVGL update per frame.
 
 The device boots into a native app launcher whose icons rotate on a
-depth-shaded Fibonacci sphere. The audio icon opens the voice orb; the other
+depth-shaded Fibonacci sphere. The gear icon opens Quick Settings with live
+Wi-Fi and battery status plus a tap-to-toggle display brightness control.
+The menu is informational for Wi-Fi; network credentials remain firmware-local. The audio icon opens the voice orb; the other
 active app icons are larger and softly illuminated. The microphone icon opens
 the voice orb and the keyboard icon opens a local rotary keyboard; remaining
 icons are inert placeholders. Launcher entries are declared in `main.c` as
