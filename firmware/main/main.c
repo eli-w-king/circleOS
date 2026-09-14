@@ -5,7 +5,8 @@
 #include <math.h>
 
 #include "app_home.h"
-#include "axp2101_button.h"
+#include "axp2101.h"
+#include "battery_indicator.h"
 #include "bsp/esp-bsp.h"
 #include "device_config.h"
 #include "esp_codec_dev.h"
@@ -42,6 +43,7 @@
 #define INITIAL_SPEAKER_VOLUME 100
 #define PLAYBACK_GAIN 2
 #define POWER_BUTTON_POLL_MS 100
+#define BATTERY_POLL_MS 5000
 
 typedef struct {
     size_t length;
@@ -60,7 +62,7 @@ static QueueHandle_t playback_queue;
 static esp_websocket_client_handle_t websocket;
 static esp_codec_dev_handle_t microphone;
 static esp_codec_dev_handle_t speaker;
-static axp2101_button_t power_button;
+static axp2101_t pmu;
 static lv_obj_t *orb_surface;
 static lv_obj_t *close_control;
 static lv_obj_t *close_label;
@@ -184,6 +186,7 @@ static void set_device_sleeping(bool sleeping)
     if (sleeping) {
         return_to_home();
         app_home_set_visible(false);
+        battery_indicator_set_visible(false);
         xQueueReset(playback_queue);
         playback_level = 0.0f;
         const int volume_result = esp_codec_dev_set_out_vol(speaker, 0);
@@ -199,6 +202,7 @@ static void set_device_sleeping(bool sleeping)
             ESP_LOGE(TAG, "Unable to restore speaker after wake: %d", volume_result);
         }
         app_home_set_visible(true);
+        battery_indicator_set_visible(true);
         ESP_ERROR_CHECK_WITHOUT_ABORT(bsp_display_brightness_set(80));
         ESP_LOGI(TAG, "Device woke to Home");
     }
@@ -278,6 +282,12 @@ static esp_err_t start_display(void)
     lv_obj_add_flag(close_control, LV_OBJ_FLAG_HIDDEN);
     close_timeout_timer = lv_timer_create(close_timeout, 3000, NULL);
     lv_timer_pause(close_timeout_timer);
+
+    if (battery_indicator_create(screen) == NULL) {
+        bsp_display_unlock();
+        ESP_LOGE(TAG, "Unable to create battery indicator");
+        return ESP_ERR_NO_MEM;
+    }
 
     bsp_display_unlock();
     return bsp_display_brightness_set(80);
@@ -653,13 +663,13 @@ static void orb_click_event(lv_event_t *event)
             : THINKING_ORB_IDLE);
 }
 
-static void power_button_task(void *argument)
+static void pmu_task(void *argument)
 {
     (void)argument;
+    uint32_t since_battery_poll_ms = BATTERY_POLL_MS;
     while (true) {
         bool short_press = false;
-        const esp_err_t result =
-            axp2101_button_poll(&power_button, &short_press);
+        const esp_err_t result = axp2101_poll_button(&pmu, &short_press);
         if (result != ESP_OK) {
             ESP_LOGE(
                 TAG,
@@ -668,6 +678,24 @@ static void power_button_task(void *argument)
         } else if (short_press) {
             set_device_sleeping(!device_sleeping);
         }
+
+        if (since_battery_poll_ms >= BATTERY_POLL_MS) {
+            since_battery_poll_ms = 0;
+            axp2101_battery_t battery;
+            const esp_err_t battery_result =
+                axp2101_read_battery(&pmu, &battery);
+            if (battery_result != ESP_OK) {
+                ESP_LOGW(
+                    TAG,
+                    "Battery read failed: %s",
+                    esp_err_to_name(battery_result));
+            } else if (bsp_display_lock(100) == ESP_OK) {
+                battery_indicator_update(&battery);
+                bsp_display_unlock();
+            }
+        }
+        since_battery_poll_ms += POWER_BUTTON_POLL_MS;
+
         vTaskDelay(pdMS_TO_TICKS(POWER_BUTTON_POLL_MS));
     }
 }
@@ -850,12 +878,25 @@ void app_main(void)
     ESP_ERROR_CHECK(start_display());
     ESP_ERROR_CHECK(start_microphone());
     ESP_ERROR_CHECK(
-        axp2101_button_init(&power_button, bsp_i2c_get_handle()));
+        axp2101_init(&pmu, bsp_i2c_get_handle()));
     ESP_ERROR_CHECK(start_speaker());
+
+    BaseType_t task_created = xTaskCreate(
+        pmu_task,
+        "pmu",
+        4096,
+        NULL,
+        5,
+        NULL);
+    if (task_created != pdPASS) {
+        ESP_LOGE(TAG, "Unable to create PMU task");
+        abort();
+    }
+
     ESP_ERROR_CHECK(connect_wifi());
     ESP_ERROR_CHECK(start_websocket());
 
-    BaseType_t task_created = xTaskCreate(
+    task_created = xTaskCreate(
         speaker_playback_task,
         "speaker_playback",
         4096,
@@ -864,18 +905,6 @@ void app_main(void)
         NULL);
     if (task_created != pdPASS) {
         ESP_LOGE(TAG, "Unable to create speaker playback task");
-        abort();
-    }
-
-    task_created = xTaskCreate(
-        power_button_task,
-        "power_button",
-        3072,
-        NULL,
-        5,
-        NULL);
-    if (task_created != pdPASS) {
-        ESP_LOGE(TAG, "Unable to create power-button task");
         abort();
     }
 

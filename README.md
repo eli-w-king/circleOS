@@ -114,3 +114,12 @@ active app, stops any requested voice session, pauses UI animation, blanks the
 AMOLED, mutes and clears speaker playback, and stops forwarding microphone
 audio. The AXP2101 remains polled at low frequency so another short PWR press
 wakes directly to Home.
+
+A battery indicator sits at the top of the screen and stays visible across Home,
+Voice, and the keyboard. The same AXP2101 poll that reads the PWR button also
+reads the fuel gauge every 5 seconds, so the indicator adds no extra I2C device
+or task. It shows a charge bolt in green while charging, amber at 20% or less,
+red at 10% or less, and a USB glyph when the board runs without a battery. The
+indicator is created and polled before Wi-Fi starts, so charge state stays
+readable even while the device is retrying a connection. It hides during soft
+sleep so the AMOLED stays fully dark.
