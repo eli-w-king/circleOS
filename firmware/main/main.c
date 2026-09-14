@@ -74,7 +74,6 @@ static volatile float playback_level;
 static volatile bool live_session_active;
 static volatile bool live_toggle_requested;
 static volatile bool voice_session_requested;
-static volatile bool device_sleeping;
 static active_app_t active_app = ACTIVE_APP_HOME;
 static bool close_control_armed;
 static playback_frame_t playback_assembly;
@@ -170,43 +169,45 @@ static void return_to_home(void)
     app_home_set_visible(true);
 }
 
-static void set_device_sleeping(bool sleeping)
+static void power_off_device(void)
 {
-    if (sleeping == device_sleeping) {
-        return;
-    }
-    device_sleeping = sleeping;
-
     if (bsp_display_lock(1000) != ESP_OK) {
-        ESP_LOGE(TAG, "Unable to lock display for sleep transition");
-        device_sleeping = !sleeping;
+        ESP_LOGE(TAG, "Unable to lock display for shutdown");
         return;
     }
 
-    if (sleeping) {
-        return_to_home();
-        app_home_set_visible(false);
-        battery_indicator_set_visible(false);
-        xQueueReset(playback_queue);
-        playback_level = 0.0f;
-        const int volume_result = esp_codec_dev_set_out_vol(speaker, 0);
-        if (volume_result != ESP_CODEC_DEV_OK) {
-            ESP_LOGE(TAG, "Unable to mute speaker for sleep: %d", volume_result);
-        }
-        ESP_ERROR_CHECK_WITHOUT_ABORT(bsp_display_brightness_set(0));
-        ESP_LOGI(TAG, "Device entered soft sleep");
-    } else {
-        const int volume_result =
-            esp_codec_dev_set_out_vol(speaker, INITIAL_SPEAKER_VOLUME);
-        if (volume_result != ESP_CODEC_DEV_OK) {
-            ESP_LOGE(TAG, "Unable to restore speaker after wake: %d", volume_result);
-        }
+    return_to_home();
+    app_home_set_visible(false);
+    battery_indicator_set_visible(false);
+    xQueueReset(playback_queue);
+    playback_level = 0.0f;
+    const int volume_result = esp_codec_dev_set_out_vol(speaker, 0);
+    if (volume_result != ESP_CODEC_DEV_OK) {
+        ESP_LOGE(TAG, "Unable to mute speaker for shutdown: %d", volume_result);
+    }
+    ESP_ERROR_CHECK_WITHOUT_ABORT(bsp_display_brightness_set(0));
+    bsp_display_unlock();
+
+    ESP_LOGI(TAG, "Powering off; press PWR to cold boot");
+    vTaskDelay(pdMS_TO_TICKS(50));
+    const esp_err_t result = axp2101_power_off(&pmu);
+    if (result != ESP_OK) {
+        ESP_LOGE(TAG, "Hardware power-off failed: %s", esp_err_to_name(result));
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    ESP_LOGE(TAG, "Hardware power-off did not complete; restoring display");
+    if (bsp_display_lock(1000) == ESP_OK) {
         app_home_set_visible(true);
         battery_indicator_set_visible(true);
         ESP_ERROR_CHECK_WITHOUT_ABORT(bsp_display_brightness_set(80));
-        ESP_LOGI(TAG, "Device woke to Home");
+        bsp_display_unlock();
     }
-    bsp_display_unlock();
+    const int restore_result =
+        esp_codec_dev_set_out_vol(speaker, INITIAL_SPEAKER_VOLUME);
+    if (restore_result != ESP_CODEC_DEV_OK) {
+        ESP_LOGE(TAG, "Unable to restore speaker: %d", restore_result);
+    }
 }
 
 static void close_control_clicked(lv_event_t *event)
@@ -676,7 +677,7 @@ static void pmu_task(void *argument)
                 "Power-button poll failed: %s",
                 esp_err_to_name(result));
         } else if (short_press) {
-            set_device_sleeping(!device_sleeping);
+            power_off_device();
         }
 
         if (since_battery_poll_ms >= BATTERY_POLL_MS) {
@@ -850,10 +851,6 @@ static void microphone_stream_task(void *argument)
             }
         }
 
-        if (device_sleeping) {
-            continue;
-        }
-
         const int sent = esp_websocket_client_send_bin(
             websocket,
             (const char *)audio_frame,
@@ -893,8 +890,15 @@ void app_main(void)
         abort();
     }
 
-    ESP_ERROR_CHECK(connect_wifi());
-    ESP_ERROR_CHECK(start_websocket());
+    const esp_err_t wifi_result = connect_wifi();
+    if (wifi_result == ESP_OK) {
+        ESP_ERROR_CHECK(start_websocket());
+    } else {
+        ESP_LOGW(
+            TAG,
+            "Continuing offline because Wi-Fi setup failed: %s",
+            esp_err_to_name(wifi_result));
+    }
 
     task_created = xTaskCreate(
         speaker_playback_task,

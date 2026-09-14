@@ -109,11 +109,11 @@ swipes review overflow text without committing. Keyboard-only 10 ms touch
 sampling and 20 ms display refresh leave Home and Voice on their stable global
 cadence. The shared bottom-edge close control returns the keyboard to Home.
 
-A short press of the physical PWR button toggles soft sleep. Sleep closes the
-active app, stops any requested voice session, pauses UI animation, blanks the
-AMOLED, mutes and clears speaker playback, and stops forwarding microphone
-audio. The AXP2101 remains polled at low frequency so another short PWR press
-wakes directly to Home.
+A short press of the physical PWR button performs an AXP2101 hardware shutdown.
+The firmware closes the active app, blanks the AMOLED, and mutes and clears
+speaker playback before asking the PMU to cut power. Another PWR press performs
+a clean cold boot. This is intentionally slower than soft sleep but avoids
+partially initialized display, audio, or network state after waking.
 
 A battery indicator sits at the top of the screen and stays visible across Home,
 Voice, and the keyboard. The same AXP2101 poll that reads the PWR button also
@@ -121,5 +121,6 @@ reads the fuel gauge every 5 seconds, so the indicator adds no extra I2C device
 or task. It shows a charge bolt in green while charging, amber at 20% or less,
 red at 10% or less, and a USB glyph when the board runs without a battery. The
 indicator is created and polled before Wi-Fi starts, so charge state stays
-readable even while the device is retrying a connection. It hides during soft
-sleep so the AMOLED stays fully dark.
+readable even while the device is retrying a connection. If all retries fail,
+the firmware remains usable offline instead of aborting into a reboot loop. The
+indicator hides during hardware shutdown so the AMOLED stays fully dark.

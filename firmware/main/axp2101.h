@@ -21,3 +21,4 @@ typedef struct {
 esp_err_t axp2101_init(axp2101_t *pmu, i2c_master_bus_handle_t bus);
 esp_err_t axp2101_poll_button(axp2101_t *pmu, bool *short_press);
 esp_err_t axp2101_read_battery(axp2101_t *pmu, axp2101_battery_t *battery);
+esp_err_t axp2101_power_off(axp2101_t *pmu);

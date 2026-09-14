@@ -9,6 +9,7 @@
 #define AXP2101_ADDRESS 0x34
 #define AXP2101_POWER_STATUS 0x00
 #define AXP2101_CHARGE_STATUS 0x01
+#define AXP2101_COMMON_CONFIG 0x10
 #define AXP2101_MODULE_ENABLE 0x18
 #define AXP2101_ADC_CHANNEL_ENABLE 0x30
 #define AXP2101_INTERRUPT_ENABLE_2 0x41
@@ -27,6 +28,7 @@
 #define AXP2101_CHARGE_STATE_SHIFT 5
 #define AXP2101_CHARGE_STATE_CHARGING 1
 #define AXP2101_PERCENTAGE_MAXIMUM 100
+#define AXP2101_SOFTWARE_POWER_OFF_BIT (1U << 0)
 
 static const char *TAG = "axp2101";
 
@@ -187,4 +189,15 @@ esp_err_t axp2101_read_battery(axp2101_t *pmu, axp2101_battery_t *battery)
         battery->battery_present && percentage <= AXP2101_PERCENTAGE_MAXIMUM;
     battery->percentage = battery->percentage_valid ? percentage : 0;
     return ESP_OK;
+}
+
+esp_err_t axp2101_power_off(axp2101_t *pmu)
+{
+    if (pmu == NULL || pmu->device == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return set_register_bits(
+        pmu,
+        AXP2101_COMMON_CONFIG,
+        AXP2101_SOFTWARE_POWER_OFF_BIT);
 }
